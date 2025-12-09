@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '@/lib/auth';
+import { formatApiError } from '@/lib/api';
 
 export default function RecoverPage() {
   const router = useRouter();
@@ -26,9 +27,9 @@ export default function RecoverPage() {
         router.push(`/reset?email=${encodeURIComponent(email)}`);
       }, 2000);
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || 'Ошибка отправки кода восстановления'
-      );
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка отправки кода восстановления');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

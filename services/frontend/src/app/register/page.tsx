@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '@/lib/auth';
+import { formatApiError } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -42,9 +43,9 @@ export default function RegisterPage() {
       // Перенаправляем на страницу подтверждения
       router.push(`/confirm?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || 'Ошибка регистрации. Попробуйте снова.'
-      );
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка регистрации. Попробуйте снова.');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

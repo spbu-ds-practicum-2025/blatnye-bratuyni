@@ -5,18 +5,47 @@ import { useRouter, usePathname } from 'next/navigation';
 import { authService } from '@/lib/auth';
 import { useEffect, useState } from 'react';
 
+// JWT decode utility (без зависимости!)
+function parseJwt(token: string): { role?: string } {
+  if (!token) return {};
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return {};
+  }
+}
+
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    const token = authService.getToken();
     setIsAuthenticated(authService.isAuthenticated());
+    if (token) {
+      const payload = parseJwt(token);
+      setUserRole(payload.role ?? null);
+    } else {
+      setUserRole(null);
+    }
   }, [pathname]);
 
   const handleLogout = () => {
     authService.logout();
     setIsAuthenticated(false);
+    setUserRole(null);
     router.push('/login');
   };
 
@@ -54,16 +83,18 @@ export default function Header() {
                   >
                     Мои бронирования
                   </Link>
-                  <Link
-                    href="/admin"
-                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                      pathname.startsWith('/admin')
-                        ? 'border-primary-500 text-gray-900'
-                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                    }`}
-                  >
-                    Админка
-                  </Link>
+                  {userRole === 'admin' && (
+                    <Link
+                      href="/admin"
+                      className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                        pathname.startsWith('/admin')
+                          ? 'border-primary-500 text-gray-900'
+                          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                      }`}
+                    >
+                      Админка
+                    </Link>
+                  )}
                 </>
               )}
             </div>

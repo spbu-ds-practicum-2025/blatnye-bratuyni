@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '@/lib/auth';
+import { formatApiError } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,14 +26,16 @@ export default function LoginPage() {
       // Перенаправляем на главную страницу
       router.push('/zones');
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail;
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка входа. Попробуйте снова.');
       
-      if (errorMessage === 'Email not confirmed') {
+      // Проверяем специфические ошибки в сообщении для более понятных текстов
+      if (errorMessage.includes('Email not confirmed') || errorMessage.includes('not confirmed')) {
         setError('Email не подтвержден. Проверьте почту и введите код подтверждения.');
-      } else if (errorMessage === 'Invalid credentials') {
+      } else if (errorMessage.includes('Invalid credentials') || errorMessage.includes('credentials')) {
         setError('Неверный email или пароль');
       } else {
-        setError('Ошибка входа. Попробуйте снова.');
+        setError(errorMessage);
       }
     } finally {
       setLoading(false);

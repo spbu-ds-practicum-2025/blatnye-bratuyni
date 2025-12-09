@@ -31,35 +31,17 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Цели проекта */}
-        <div className="mt-16">
-          <div className="card max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Цель проекта</h2>
-            <p className="text-gray-700">
-              Разработка распределённой системы онлайн‑бронирования рабочих мест в коворкингах кампуса, 
-              где пользователи могут регистрироваться, просматривать зоны и рабочие места с доступными 
-              временными слотами, оформлять и отменять бронирования и взаимодействовать с платформой 
-              через веб-интерфейс.
-            </p>
-          </div>
-        </div>
-
-        {/* Задачи */}
         <div className="mt-12">
           <div className="card max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Основные задачи</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Преимущества системы</h2>
             <ul className="space-y-2 text-gray-700">
               <li className="flex items-start">
                 <span className="text-primary-600 mr-2">✓</span>
-                <span>Система регистрации и аутентификации пользователей</span>
+                <span>Интуитивно понятный интерфейс</span>
               </li>
               <li className="flex items-start">
                 <span className="text-primary-600 mr-2">✓</span>
-                <span>Просмотр зон и рабочих мест с доступными слотами</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary-600 mr-2">✓</span>
-                <span>Функционал бронирования: создание, отмена, продление и история</span>
+                <span>Полноценный функционал для быстрого бронирования: создание, отмена, продление и история</span>
               </li>
               <li className="flex items-start">
                 <span className="text-primary-600 mr-2">✓</span>
@@ -67,52 +49,16 @@ export default function Home() {
               </li>
               <li className="flex items-start">
                 <span className="text-primary-600 mr-2">✓</span>
-                <span>Высокая производительность и надёжность системы</span>
+                <span>Высокая производительность и доступность 24/7</span>
               </li>
             </ul>
-          </div>
-        </div>
-
-        {/* Глоссарий */}
-        <div className="mt-12">
-          <div className="card max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Глоссарий</h2>
-            <div className="grid grid-cols-1 gap-4 text-sm">
-              <div className="border-l-4 border-primary-600 pl-4">
-                <h3 className="font-semibold text-gray-900">Пользователь</h3>
-                <p className="text-gray-600">Зарегистрированный клиент системы бронирования</p>
-              </div>
-              <div className="border-l-4 border-primary-600 pl-4">
-                <h3 className="font-semibold text-gray-900">Зона</h3>
-                <p className="text-gray-600">Локация коворкинга, объединяющая рабочие места</p>
-              </div>
-              <div className="border-l-4 border-primary-600 pl-4">
-                <h3 className="font-semibold text-gray-900">Рабочее место</h3>
-                <p className="text-gray-600">Физическое место, доступное для бронирования</p>
-              </div>
-              <div className="border-l-4 border-primary-600 pl-4">
-                <h3 className="font-semibold text-gray-900">Бронь</h3>
-                <p className="text-gray-600">Операция резервирования рабочего места на определённый слот времени</p>
-              </div>
-              <div className="border-l-4 border-primary-600 pl-4">
-                <h3 className="font-semibold text-gray-900">Слот времени</h3>
-                <p className="text-gray-600">Интервал для бронирования, кратный 60 минутам</p>
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Возможности системы */}
         <div className="mt-16">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">Возможности системы</h2>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            <div className="card text-center">
-              <div className="text-primary-600 text-4xl mb-4">🏢</div>
-              <h3 className="text-lg font-semibold mb-2">Удобное расположение</h3>
-              <p className="text-gray-600">
-                Коворкинг-зоны в удобных местах кампуса
-              </p>
-            </div>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <div className="card text-center">
               <div className="text-primary-600 text-4xl mb-4">⚡</div>
               <h3 className="text-lg font-semibold mb-2">Быстрое бронирование</h3>
@@ -122,9 +68,9 @@ export default function Home() {
             </div>
             <div className="card text-center">
               <div className="text-primary-600 text-4xl mb-4">💼</div>
-              <h3 className="text-lg font-semibold mb-2">Современное оборудование</h3>
+              <h3 className="text-lg font-semibold mb-2">Новые вместительные помещения</h3>
               <p className="text-gray-600">
-                Все необходимое для продуктивной работы
+                Есть все необходимое для продуктивной работы
               </p>
             </div>
           </div>

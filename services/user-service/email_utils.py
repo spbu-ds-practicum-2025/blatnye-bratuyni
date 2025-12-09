@@ -17,6 +17,9 @@ def send_email(to_email: str, subject: str, body: str):
     msg['To'] = to_email
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASSWORD)
+        # Пример простой проверки: если есть переменная USE_TLS — только тогда использовать TLS и login
+        import os
+        if os.getenv("SMTP_USE_TLS", "false").lower() == "true":
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
         server.send_message(msg)

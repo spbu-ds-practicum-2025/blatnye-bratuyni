@@ -16,8 +16,8 @@ def send_email(notification):
 
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(EMAIL_USER, EMAIL_PASS)
+            #server.starttls()
+            #server.login(EMAIL_USER, EMAIL_PASS)
             server.send_message(msg)
         return True
     except Exception as e:

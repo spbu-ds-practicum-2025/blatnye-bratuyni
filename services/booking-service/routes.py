@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import crud
 import schemas
+from crud import BookingExtensionError, BookingError
 from db import get_session
 
 router = APIRouter(tags=["booking"])
@@ -28,9 +29,10 @@ router = APIRouter(tags=["booking"])
     summary="Список зон",
 )
 async def list_zones(
+    include_inactive: bool = Query(False, description="Включить неактивные зоны"),
     session: AsyncSession = Depends(get_session),
 ):
-    return await crud.get_zones(session)
+    return await crud.get_zones(session, include_inactive=include_inactive)
 
 
 @router.get(
@@ -72,9 +74,32 @@ async def create_booking(
     booking = await crud.create_booking(session, user_id, booking_in)
     if booking is None:
         raise HTTPException(
-            400, "Невозможно создать бронь"
+            status.HTTP_409_CONFLICT, 
+            "Невозможно создать бронь: слот недоступен или зона переполнена"
         )
     return booking
+
+
+@router.post(
+    "/bookings/by-time",
+    response_model=schemas.BookingOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать бронь по времени",
+)
+async def create_booking_by_time(
+    booking_in: schemas.BookingCreateTimeRange,
+    session: AsyncSession = Depends(get_session),
+    user_id: int = Depends(get_current_user_id),
+):
+    try:
+        booking = await crud.create_booking_by_time_range(session, user_id, booking_in)
+        return booking
+    except BookingError as e:
+        # // возвращаем детальную ошибку с кодом и сообщением
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": e.code, "message": e.message}
+        )
 
 
 @router.post(
@@ -129,10 +154,22 @@ async def booking_history(
 )
 async def extend_booking(
     booking_id: int,
+    extend_data: schemas.BookingExtendTimeRequest,
     session: AsyncSession = Depends(get_session),
     user_id: int = Depends(get_current_user_id),
 ):
-    booking = await crud.extend_booking(session, user_id, booking_id)
-    if booking is None:
-        raise HTTPException(400, "Невозможно продлить бронь")
-    return booking
+    try:
+        booking = await crud.extend_booking(
+            session, 
+            user_id, 
+            booking_id,
+            extend_hours=extend_data.extend_hours,
+            extend_minutes=extend_data.extend_minutes,
+        )
+        return booking
+    except BookingExtensionError as e:
+        # // возвращаем детальную ошибку с кодом и сообщением
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": e.code, "message": e.message}
+        )

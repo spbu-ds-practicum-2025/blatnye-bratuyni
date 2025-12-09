@@ -1,18 +1,21 @@
 from datetime import datetime
-
 from sqlalchemy import (
     Boolean,
     Column,
-    DateTime,
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     Index,
+    TIMESTAMP,
+    func,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
-# Базовый класс для всех ORM-моделей
+# Импорт утилиты для работы с московским временем
+from timezone_utils import now_utc
+
 Base = declarative_base()
 
 
@@ -23,20 +26,19 @@ class Zone(Base):
     name = Column(String(255), nullable=False)
     address = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    closure_reason = Column(Text, nullable=True)
+    closed_until = Column(TIMESTAMP(timezone=True), nullable=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 
-    # Связь: у зоны есть много мест
-    places = relationship(
-        "Place",
-        back_populates="zone",
-        cascade="all, delete-orphan",
-    )
+    places = relationship("Place", back_populates="zone", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Zone id={self.id} name={self.name!r}>"
@@ -54,22 +56,16 @@ class Place(Base):
     )
     name = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 
-    # Связь с зоной
     zone = relationship("Zone", back_populates="places")
-    # У места есть слоты
-    slots = relationship(
-        "Slot",
-        back_populates="place",
-        cascade="all, delete-orphan",
-    )
+    slots = relationship("Slot", back_populates="place", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Place id={self.id} zone_id={self.zone_id} name={self.name!r}>"
@@ -78,7 +74,6 @@ class Place(Base):
 class Slot(Base):
     __tablename__ = "slots"
     __table_args__ = (
-        # один и тот же интервал времени для одного места нельзя дублировать
         UniqueConstraint(
             "place_id",
             "start_time",
@@ -95,17 +90,12 @@ class Slot(Base):
         nullable=False,
         index=True,
     )
-    start_time = Column(DateTime, nullable=False)
-    end_time = Column(DateTime, nullable=False)
-    # Этот флаг можно использовать как кеш доступности
+    start_time = Column(TIMESTAMP(timezone=True), nullable=False)
+    end_time = Column(TIMESTAMP(timezone=True), nullable=False)
     is_available = Column(Boolean, default=True, nullable=False)
 
     place = relationship("Place", back_populates="slots")
-    bookings = relationship(
-        "Booking",
-        back_populates="slot",
-        cascade="all, delete-orphan",
-    )
+    bookings = relationship("Booking", back_populates="slot", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return (
@@ -125,17 +115,22 @@ class Booking(Base):
         nullable=False,
         index=True,
     )
+    zone_name = Column(String(255), nullable=True)
+    zone_address = Column(String(255), nullable=True)
+    start_time = Column(TIMESTAMP(timezone=True), nullable=True)
+    end_time = Column(TIMESTAMP(timezone=True), nullable=True)
     status = Column(
         String(32),
-        default="active",  # active / cancelled / completed
+        default="active",
         nullable=False,
         index=True,
     )
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    cancellation_reason = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False,
     )
 

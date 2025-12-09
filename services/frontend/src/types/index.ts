@@ -45,8 +45,14 @@ export interface Zone {
   name: string;
   address: string | null;
   is_active: boolean;
+  closure_reason: string | null;
+  closed_until: string | null;
   created_at: string;
   updated_at: string;
+  // --- добавь статистику, чтобы не было ошибок ---
+  active_bookings?: number;
+  cancelled_bookings?: number;
+  current_occupancy?: number;
 }
 
 export interface Place {
@@ -70,13 +76,27 @@ export interface Booking {
   id: number;
   user_id: number;
   slot_id: number;
+  zone_name: string | null;
+  zone_address: string | null;
+  start_time: string | null;
+  end_time: string | null;
   status: string;
+  cancellation_reason: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface BookingCreate {
   slot_id: number;
+}
+
+export interface BookingCreateByTime {
+  zone_id: number;
+  date: string;
+  start_hour: number;
+  start_minute: number;
+  end_hour: number;
+  end_minute: number;
 }
 
 export interface BookingCancel {
@@ -88,6 +108,7 @@ export interface ZoneCreate {
   name: string;
   address?: string;
   is_active?: boolean;
+  places_count: number;
 }
 
 export interface ZoneUpdate {
@@ -100,4 +121,15 @@ export interface ZoneCloseRequest {
   reason: string;
   from_time: string;
   to_time: string;
+}
+
+export interface ZoneStatistics {
+  zone_id: number;
+  zone_name: string;
+  is_active: boolean;
+  closure_reason: string | null;
+  closed_until: string | null;
+  active_bookings: number;
+  cancelled_bookings: number;
+  current_occupancy: number;
 }

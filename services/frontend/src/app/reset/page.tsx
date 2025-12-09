@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '@/lib/auth';
+import { formatApiError } from '@/lib/api';
 
 function ResetForm() {
   const router = useRouter();
@@ -56,9 +57,9 @@ function ResetForm() {
         router.push('/login');
       }, 2000);
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || 'Неверный код восстановления'
-      );
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Неверный код восстановления');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -14,4 +14,5 @@ class User(Base):
     confirmed = Column(Boolean, default=False)
     confirmation_code = Column(String, nullable=True)
     recovery_code = Column(String, nullable=True)
+    role = Column(String, default="user", nullable=False)  # "user" or "admin"
     created_at = Column(DateTime, default=datetime.utcnow)

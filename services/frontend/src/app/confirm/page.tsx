@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '@/lib/auth';
+import { formatApiError } from '@/lib/api';
 
 function ConfirmForm() {
   const router = useRouter();
@@ -42,9 +43,9 @@ function ConfirmForm() {
         router.push('/login');
       }, 2000);
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || 'Неверный код подтверждения'
-      );
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Неверный код подтверждения');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

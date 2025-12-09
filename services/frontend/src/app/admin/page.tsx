@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { bookingService, adminService } from '@/lib/booking';
+import { bookingService, adminService, notificationService } from '@/lib/booking';
 import { authService } from '@/lib/auth';
+import { formatApiError } from '@/lib/api';
 import { Zone } from '@/types';
+import { formatMoscowTime, fromMoscowDatetimeLocal } from '@/lib/timezone';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -14,12 +16,14 @@ export default function AdminPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [showBulkNotificationModal, setShowBulkNotificationModal] = useState(false);
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
-  
+
   const [createForm, setCreateForm] = useState({
     name: '',
     address: '',
     is_active: true,
+    places_count: 10,
   });
 
   const [editForm, setEditForm] = useState({
@@ -34,6 +38,12 @@ export default function AdminPage() {
     to_time: '',
   });
 
+  // // уведомления: Форма для массовой рассылки
+  const [bulkNotificationForm, setBulkNotificationForm] = useState({
+    subject: '',
+    text: '',
+  });
+
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       router.push('/login');
@@ -44,8 +54,8 @@ export default function AdminPage() {
 
   const loadZones = async () => {
     try {
-      const data = await bookingService.getZones();
-      setZones(data);
+      const zonesData = await adminService.getAdminZones();
+      setZones(zonesData);
       setLoading(false);
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -63,10 +73,12 @@ export default function AdminPage() {
       await adminService.createZone(createForm);
       alert('Зона создана успешно');
       setShowCreateModal(false);
-      setCreateForm({ name: '', address: '', is_active: true });
+      setCreateForm({ name: '', address: '', is_active: true, places_count: 10 });
       loadZones();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Ошибка создания зоны');
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка создания зоны');
+      alert(errorMessage);
     }
   };
 
@@ -81,7 +93,9 @@ export default function AdminPage() {
       setSelectedZone(null);
       loadZones();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Ошибка обновления зоны');
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка обновления зоны');
+      alert(errorMessage);
     }
   };
 
@@ -95,7 +109,9 @@ export default function AdminPage() {
       alert('Зона удалена успешно');
       loadZones();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Ошибка удаления зоны');
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка удаления зоны');
+      alert(errorMessage);
     }
   };
 
@@ -104,15 +120,47 @@ export default function AdminPage() {
     if (!selectedZone) return;
 
     try {
-      const affectedBookings = await adminService.closeZone(selectedZone.id, closeForm);
+      const affectedBookings = await adminService.closeZone(selectedZone.id, {
+        reason: closeForm.reason,
+        from_time: fromMoscowDatetimeLocal(closeForm.from_time),
+        to_time: fromMoscowDatetimeLocal(closeForm.to_time),
+      });
       alert(
         `Зона закрыта. Отменено бронирований: ${affectedBookings.length}`
       );
       setShowCloseModal(false);
       setSelectedZone(null);
       setCloseForm({ reason: '', from_time: '', to_time: '' });
+      loadZones();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Ошибка закрытия зоны');
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка закрытия зоны');
+      alert(errorMessage);
+    }
+  };
+
+  // // уведомления: Обработчик отправки массовой рассылки
+  const handleSendBulkNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkNotificationForm.subject || !bulkNotificationForm.text) {
+      alert('Заполните все поля');
+      return;
+    }
+
+    try {
+      const result = await notificationService.sendBulkEmail(
+        bulkNotificationForm.subject,
+        bulkNotificationForm.text
+      );
+      alert(
+        `Массовая рассылка завершена!\nОтправлено: ${result.sent}\nНе удалось: ${result.failed}\nВсего: ${result.total}`
+      );
+      setShowBulkNotificationModal(false);
+      setBulkNotificationForm({ subject: '', text: '' });
+    } catch (err: any) {
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка отправки рассылки');
+      alert(errorMessage);
     }
   };
 
@@ -144,12 +192,20 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Админ-панель</h1>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary"
-          >
-            + Создать зону
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setShowBulkNotificationModal(true)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+            >
+              📧 Массовая рассылка
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary"
+            >
+              + Создать зону
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -176,13 +232,47 @@ export default function AdminPage() {
                           : 'bg-red-100 text-red-800'
                       }`}
                     >
-                      {zone.is_active ? 'Активна' : 'Неактивна'}
+                      {zone.is_active ? 'Активен' : 'Закрыт'}
                     </span>
                   </div>
                   {zone.address && (
                     <p className="text-gray-600 mb-1">{zone.address}</p>
                   )}
-                  <p className="text-sm text-gray-500">ID: {zone.id}</p>
+                  <p className="text-sm text-gray-500 mb-2">ID: {zone.id}</p>
+
+                  <div className="flex flex-wrap gap-4 mb-2">
+                    <div className="text-sm">
+                      <span className="font-medium text-green-700">
+                        Активных бронирований: {zone.active_bookings}
+                      </span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium text-red-700">
+                        Отменённых: {zone.cancelled_bookings}
+                      </span>
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium text-blue-700">
+                        Пользователей сейчас в коворкинге: {zone.current_occupancy}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!zone.is_active && (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                      {zone.closure_reason && (
+                        <p className="text-sm text-yellow-800 mb-1">
+                          <span className="font-medium">Причина закрытия:</span> {zone.closure_reason}
+                        </p>
+                      )}
+                      {zone.closed_until && (
+                        <p className="text-sm text-yellow-800">
+                          <span className="font-medium">Дата открытия:</span>{' '}
+                          {formatMoscowTime(zone.closed_until)}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex space-x-2">
@@ -244,6 +334,22 @@ export default function AdminPage() {
                   value={createForm.address}
                   onChange={(e) =>
                     setCreateForm({ ...createForm, address: e.target.value })
+                  }
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Количество мест
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={createForm.places_count}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, places_count: parseInt(e.target.value) || 1 })
                   }
                   className="input-field"
                 />
@@ -401,6 +507,10 @@ export default function AdminPage() {
                 />
               </div>
 
+              <div className="text-sm text-gray-600">
+                <p>Время указывается по московскому часовому поясу (МСК)</p>
+              </div>
+
               <div className="flex space-x-2">
                 <button type="submit" className="btn-primary flex-1">
                   Закрыть зону
@@ -408,6 +518,66 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => setShowCloseModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно массовой рассылки */}
+      {showBulkNotificationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Массовая рассылка всем пользователям</h2>
+            <form onSubmit={handleSendBulkNotification} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Тема письма
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={bulkNotificationForm.subject}
+                  onChange={(e) =>
+                    setBulkNotificationForm({ ...bulkNotificationForm, subject: e.target.value })
+                  }
+                  className="input-field"
+                  placeholder="Важное объявление"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Текст сообщения
+                </label>
+                <textarea
+                  required
+                  rows={6}
+                  value={bulkNotificationForm.text}
+                  onChange={(e) =>
+                    setBulkNotificationForm({ ...bulkNotificationForm, text: e.target.value })
+                  }
+                  className="input-field"
+                  placeholder="Введите текст сообщения для всех пользователей..."
+                />
+              </div>
+
+              <div className="text-sm text-gray-600 bg-yellow-50 p-3 rounded">
+                <p className="font-medium">⚠️ Внимание:</p>
+                <p>Сообщение будет отправлено на email всем подтверждённым пользователям системы.</p>
+              </div>
+
+              <div className="flex space-x-2">
+                <button type="submit" className="btn-primary flex-1">
+                  Отправить всем
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkNotificationModal(false)}
                   className="btn-secondary flex-1"
                 >
                   Отмена

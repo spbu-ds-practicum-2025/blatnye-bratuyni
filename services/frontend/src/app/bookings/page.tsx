@@ -4,7 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { bookingService } from '@/lib/booking';
 import { authService } from '@/lib/auth';
+import { formatApiError } from '@/lib/api';
 import { Booking } from '@/types';
+import { formatMoscowTime } from '@/lib/timezone';
+import { useNotifications } from '@/lib/useNotifications';
+import NotificationToast from '@/components/NotificationToast';
 
 export default function BookingsPage() {
   const router = useRouter();
@@ -17,6 +21,9 @@ export default function BookingsPage() {
     date_to: '',
   });
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  
+  // // push: Подключаем hook для уведомлений
+  const { currentNotification, showNotification, closeNotification } = useNotifications();
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -80,10 +87,17 @@ export default function BookingsPage() {
 
     try {
       await bookingService.cancelBooking({ booking_id: bookingId });
-      alert('Бронирование отменено');
+      // // push: Показываем уведомление об отмене бронирования
+      showNotification(
+        'Бронирование отменено',
+        'Ваше бронирование успешно отменено',
+        'booking_cancelled'
+      );
       loadBookings();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Ошибка отмены бронирования');
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка отмены бронирования');
+      alert(errorMessage);
     } finally {
       setCancellingId(null);
     }
@@ -92,10 +106,17 @@ export default function BookingsPage() {
   const handleExtendBooking = async (bookingId: number) => {
     try {
       await bookingService.extendBooking(bookingId);
-      alert('Бронирование продлено');
+      // // push: Показываем уведомление о продлении бронирования
+      showNotification(
+        'Бронирование продлено',
+        'Ваше бронирование успешно продлено на 1 час',
+        'booking_extended'
+      );
       loadBookings();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Ошибка продления бронирования');
+      // Конвертируем ошибку API в строку для безопасного отображения
+      const errorMessage = formatApiError(err, 'Ошибка продления бронирования');
+      alert(errorMessage);
     }
   };
 
@@ -127,14 +148,21 @@ export default function BookingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <>
+        {/* // push: Компонент всплывающих уведомлений */}
+        <NotificationToast notification={currentNotification} onClose={closeNotification} />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-lg text-gray-600">Загрузка...</div>
       </div>
+    </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <>
+      {/* // push: Компонент всплывающих уведомлений */}
+      <NotificationToast notification={currentNotification} onClose={closeNotification} />
+      <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">
           История бронирований
@@ -220,15 +248,39 @@ export default function BookingsPage() {
                     </span>
                   </div>
                   <div className="text-sm text-gray-600 space-y-1">
+                    {booking.zone_name && (
+                      <p>
+                        <span className="font-medium">Зона:</span> {booking.zone_name}
+                      </p>
+                    )}
+                    {booking.zone_address && (
+                      <p>
+                        <span className="font-medium">Адрес:</span> {booking.zone_address}
+                      </p>
+                    )}
+                    {booking.start_time && booking.end_time && (
+                      <p>
+                        <span className="font-medium">Время бронирования:</span> с{' '}
+                        {formatMoscowTime(booking.start_time)} по{' '}
+                        {formatMoscowTime(booking.end_time)}
+                      </p>
+                    )}
                     <p>Слот ID: {booking.slot_id}</p>
                     <p>
                       Создано:{' '}
-                      {new Date(booking.created_at).toLocaleString('ru-RU')}
+                      {formatMoscowTime(booking.created_at)}
                     </p>
                     <p>
                       Обновлено:{' '}
-                      {new Date(booking.updated_at).toLocaleString('ru-RU')}
+                      {formatMoscowTime(booking.updated_at)}
                     </p>
+                    {booking.status === 'cancelled' && booking.cancellation_reason && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-800">
+                          <span className="font-medium">Причина отмены:</span> {booking.cancellation_reason}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -267,5 +319,6 @@ export default function BookingsPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
