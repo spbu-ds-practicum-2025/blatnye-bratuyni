@@ -1,0 +1,61 @@
+openapi: 3.0.3
+info:
+  title: Notification Service API
+  version: "1.0.0"
+  description: Уведомления пользователям о событиях (email, push, internal).
+paths:
+  /notify/email:
+    post:
+      summary: Отправить email-уведомление
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailNotification' }
+      responses:
+        '200': { description: Email отправлен }
+        '400': { description: Ошибка }
+  /notify/bulk:
+    post:
+      summary: Массовая email-рассылка
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BulkNotification' }
+      responses:
+        '200': { description: Email отправлены }
+        '400': { description: Ошибка }
+  /notify/internal:
+    post:
+      summary: Отправить внутреннее/system уведомление (заглушка)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InternalNotification' }
+      responses:
+        '200': { description: Уведомление обработано }
+        '400': { description: Ошибка }
+components:
+  schemas:
+    EmailNotification:
+      type: object
+      properties:
+        email: { type: string }
+        subject: { type: string }
+        text: { type: string }
+    BulkNotification:
+      type: object
+      properties:
+        emails:
+          type: array
+          items: { type: string }
+        subject: { type: string }
+        text: { type: string }
+    InternalNotification:
+      type: object
+      properties:
+        user_id: { type: integer }
+        type: { type: string }
+        message: { type: string }

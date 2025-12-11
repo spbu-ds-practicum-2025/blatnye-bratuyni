@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: API Gateway
+  version: "1.0.0"
+  description: |
+    Маршрутизирует запросы между фронтом и микросервисами системы бронирования.
+servers:
+  - url: http://localhost:8000
+paths:
+  /users/register:
+    post:
+      summary: Регистрация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '200': { description: Успешная регистрация }
+        '400': { description: Некорректные данные }
+  /users/confirm:
+    post:
+      summary: Подтверждение email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmEmailRequest' }
+      responses:
+        '200': { description: Email подтверждён }
+        '400': { description: Ошибка кода }
+  /users/login:
+    post:
+      summary: Вход пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: JWT токен }
+        '401': { description: Неверная аутентификация }
+  /users/recover:
+    post:
+      summary: Запрос на восстановление пароля
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecoverRequest' }
+      responses:
+        '200': { description: Ссылка отправлена }
+        '404': { description: Email не найден }
+  /users/reset:
+    post:
+      summary: Сброс пароля по коду
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetRequest' }
+      responses:
+        '200': { description: Пароль изменён }
+        '400': { description: Некорректный или просроченный токен }
+  /zones:
+    get:
+      summary: Получить все зоны
+      responses:
+        '200': { description: Список зон }
+  /zones/{id}/places:
+    get:
+      summary: Рабочие места в зоне
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Список мест }
+        '404': { description: Зона не найдена }
+  /places/{id}/slots:
+    get:
+      summary: Слоты рабочего места на дату
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Список слотов }
+  /bookings:
+    post:
+      summary: Создать бронь рабочего места
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingRequest' }
+      responses:
+        '200': { description: Бронь подтверждена }
+        '400': { description: Ошибка }
+  /bookings/cancel:
+    post:
+      summary: Отмена бронирования
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelRequest' }
+      responses:
+        '200': { description: Бронь отменена }
+        '404': { description: Не найдено }
+  /bookings/history:
+    get:
+      summary: История бронирований пользователя
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Список броней }
+  /bookings/{id}/extend:
+    post:
+      summary: Продлить бронь рабочего места
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Продлено }
+        '404': { description: Не найдено }
+  /admin/zones:
+    post:
+      summary: Администрирование зон (создание/редактирование/удаление)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZoneAdminRequest' }
+      responses:
+        '200': { description: ОК }
+        '403': { description: Нет доступа }
+  /admin/zones/{id}/close:
+    post:
+      summary: Закрыть зону на обслуживание
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZoneCloseRequest' }
+      responses:
+        '200': { description: ОК }
+        '403': { description: Нет доступа }
+  /notify/email:
+    post:
+      summary: Отправить email-уведомление пользователю
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailNotification' }
+      responses:
+        '200': { description: Email отправлен }
+        '400': { description: Ошибка }
+  /notify/bulk:
+    post:
+      summary: Массовая email-рассылка
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BulkNotification' }
+      responses:
+        '200': { description: Email отправлены }
+        '400': { description: Ошибка }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      properties:
+        email: { type: string }
+        name: { type: string }
+        password: { type: string }
+    ConfirmEmailRequest:
+      type: object
+      properties:
+        email: { type: string }
+        code: { type: string }
+    LoginRequest:
+      type: object
+      properties:
+        email: { type: string }
+        password: { type: string }
+    RecoverRequest:
+      type: object
+      properties:
+        email: { type: string }
+    ResetRequest:
+      type: object
+      properties:
+        email: { type: string }
+        token: { type: string }
+        new_password: { type: string }
+    BookingRequest:
+      type: object
+      properties:
+        place_id: { type: integer }
+        slot_id: { type: integer }
+    CancelRequest:
+      type: object
+      properties:
+        booking_id: { type: integer }
+    ZoneAdminRequest:
+      type: object
+      properties:
+        name: { type: string }
+        address: { type: string }
+    ZoneCloseRequest:
+      type: object
+      properties:
+        reason: { type: string }
+        maintenance_period: { type: string }
+    EmailNotification:
+      type: object
+      properties:
+        email: { type: string }
+        subject: { type: string }
+        text: { type: string }
+    BulkNotification:
+      type: object
+      properties:
+        emails:
+          type: array
+          items: { type: string }
+        subject: { type: string }
+        text: { type: string }

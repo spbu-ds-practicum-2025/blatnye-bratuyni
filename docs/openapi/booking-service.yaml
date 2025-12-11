@@ -1,0 +1,143 @@
+openapi: 3.0.3
+info:
+  title: Booking Service API
+  version: "1.0.0"
+  description: |
+    Управление бронированием и администрирование зон/рабочих мест.
+paths:
+  /zones:
+    get:
+      summary: Получить все зоны
+      responses:
+        '200': { description: Список зон }
+  /zones/{id}/places:
+    get:
+      summary: Получить рабочие места зоны
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Список мест }
+        '404': { description: Зона не найдена }
+  /places/{id}/slots:
+    get:
+      summary: Получить слоты рабочего места
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Список слотов }
+  /bookings:
+    post:
+      summary: Создать бронь
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingRequest' }
+      responses:
+        '200': { description: Бронь подтверждена }
+        '400': { description: Некорректные данные }
+  /bookings/cancel:
+    post:
+      summary: Отмена брони
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelRequest' }
+      responses:
+        '200': { description: Бронь отменена }
+        '404': { description: Не найдена }
+  /bookings/history:
+    get:
+      summary: История бронирований пользователя
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Список броней }
+  /bookings/{id}/extend:
+    post:
+      summary: Продлить бронь
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Продлено }
+        '404': { description: Не найдена }
+  /admin/zones:
+    post:
+      summary: Администрирование зон
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZoneAdminRequest' }
+      responses:
+        '200': { description: ОК }
+        '403': { description: Нет доступа }
+  /admin/zones/{id}/close:
+    post:
+      summary: Закрыть зону на обслуживание
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZoneCloseRequest' }
+      responses:
+        '200': { description: ОК }
+        '403': { description: Нет доступа }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    BookingRequest:
+      type: object
+      properties:
+        place_id: { type: integer }
+        slot_id: { type: integer }
+    CancelRequest:
+      type: object
+      properties:
+        booking_id: { type: integer }
+    ZoneAdminRequest:
+      type: object
+      properties:
+        name: { type: string }
+        address: { type: string }
+    ZoneCloseRequest:
+      type: object
+      properties:
+        reason: { type: string }
+        maintenance_period: { type: string }

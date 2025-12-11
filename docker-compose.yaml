@@ -1,0 +1,108 @@
+version: "3"
+services:
+  user-db:
+    image: postgres:16
+    container_name: user-db
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata/user:/var/lib/postgresql/data
+      - ./services/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  booking-db:
+    image: postgres:16
+    container_name: booking-db
+    environment:
+      POSTGRES_DB: booking_db
+      POSTGRES_USER: booking_user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./pgdata/booking:/var/lib/postgresql/data
+      - ./services/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  notification-db:
+    image: postgres:16
+    container_name: notification-db
+    environment:
+      POSTGRES_DB: notif_db
+      POSTGRES_USER: notifier
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./pgdata/notification:/var/lib/postgresql/data
+
+  user-service:
+    build: ./services/user-service
+    container_name: user-service
+    environment:
+      - DATABASE_URL=postgresql://user:password@user-db:5432/user_db
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - JWT_SECRET=a-string-secret-at-least-256-bits-long 
+    depends_on:
+      - user-db
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  booking-service:
+    build: ./services/booking-service
+    container_name: booking-service
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://booking_user:password@booking-db:5432/booking_db
+      - JWT_SECRET=a-string-secret-at-least-256-bits-long
+    depends_on:
+      - booking-db
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+
+  notification-service:
+    build: ./services/notification-service
+    container_name: notification-service
+    environment:
+      - DATABASE_URL=postgresql://notifier:password@notification-db:5432/notif_db
+      - JWT_SECRET=a-string-secret-at-least-256-bits-long
+      - SMTP_SERVER=mailhog
+      - SMTP_PORT=1025
+      - EMAIL_USER=noreply@coworking.com
+      - EMAIL_PASS=anything 
+    depends_on:
+      - notification-db
+    ports:
+      - "8003:8003"
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - user-service
+      - booking-service
+      - notification-service
+    environment:
+      - JWT_SECRET=a-string-secret-at-least-256-bits-long
+
+  frontend:
+    build: ./services/frontend
+    container_name: coworking-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://host.docker.internal:8000
+    restart: unless-stopped
+    
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "8025:8025"
+      - "1025:1025"

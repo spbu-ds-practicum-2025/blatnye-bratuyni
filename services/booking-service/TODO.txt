@@ -1,0 +1,174 @@
+# TODO для Booking Service: интеграция с User Service, API Gateway и Notification Service
+
+========================================
+1. User Service (Илья) — получение структуры JWT
+========================================
+
+1.1. Узнать финальный формат payload JWT, который выдаёт User Service.
+     Вопросы к Илье:
+       - Какие поля точно есть в токене?
+         Примеры вариантов:
+           - sub (int) — user_id
+           - role (str) — "user" / "admin"
+           - email (str)
+           - exp (int)
+       - Как именно кодируется роль admin?
+         - role == "admin"
+         - отдельный флаг is_admin
+       - Какой алгоритм используется?
+         - HS256 / RS256
+
+1.2. Зафиксировать договорённости в виде короткой спецификации:
+       - "JWT payload must contain: sub (user_id), role (user|admin), exp"
+
+1.3. Убедиться, что User Service возвращает JWT, который API Gateway умеет валидировать.
+
+
+========================================
+2. API Gateway (другой Рома) — договориться о протоколе между Gateway и Booking Service
+========================================
+
+2.1. Договориться с автором API Gateway о том, КАК он будет передавать данные в Booking Service
+     после валидации JWT.
+
+     Предлагаемый формат:
+       - HTTP-заголовки:
+           X-User-Id: <int>
+           X-User-Role: <"user" или "admin">
+       - Все запросы к Booking Service (кроме публичных GET /zones, /zones/{id}/places, /places/{id}/slots)
+         должны приходить только через Gateway НА ПРОДЕ.
+
+2.2. Уточнить:
+       - Список ручек Booking Service, которые можно вызывать без авторизации
+         (например, только GET /zones и GET /zones/{id}/places, GET /places/{id}/slots?date=)
+       - Все остальные (POST /bookings, /bookings/cancel, /bookings/{id}/extend, /bookings/history, /admin/*)
+         должны требовать валидный JWT на уровне Gateway.
+
+2.3. Прописать договорённые заголовки в документации:
+       - X-User-Id: integer
+       - X-User-Role: string, Enum("user", "admin")
+
+2.4. После реализации Gateway:
+       - Проверить, что при вызове Booking Service ЧЕРЕЗ Gateway в логах Booking видно:
+           - правильные значения user_id и role из заголовков
+           - при отсутствии или некорректных заголовков Booking Service возвращает 401/403
+             (это проверяется через слой security.py).
+
+
+========================================
+3. Booking Service — финальная доводка security после готовности Gateway и User Service
+========================================
+
+3.1. Перепроверить реализацию app/security.py:
+       - get_current_user:
+           - читает X-User-Id, X-User-Role
+           - при отсутствии заголовков → HTTP 401 Unauthorized
+           - при некорректной роли → HTTP 403 Forbidden
+       - get_current_user_id:
+           - просто обёртка над get_current_user, возвращает user_id
+       - require_admin:
+           - берёт CurrentUser
+           - если role != "admin" → HTTP 403
+           - иначе даёт пройти дальше
+
+3.2. Пройтись по routes.py:
+       - Все пользовательские ручки бронирования (создание/отмена/история/продление) используют
+         Depends(get_current_user_id) или Depends(get_current_user).
+       - В CRUD-функции передаётся корректный user_id из токена.
+
+3.3. Пройтись по admin.py:
+       - Все /admin/* ручки используют Depends(require_admin).
+       - Внутри CRUD не делается проверка ролей — она полностью на уровне security/роутов.
+
+3.4. Обсудить с командой:
+       - нужно ли Booking Service иметь дополнительную проверку, чтобы убедиться,
+         что ему действительно шлёт запрос ТОЛЬКО API Gateway, а не кто-то в обход.
+         Варианты:
+           - отдельный сервисный токен / секрет между Gateway и Booking
+           - дополнительный заголовок X-Internal-Token с секретом
+           - ограничение доступа по сети (internal network в Docker Compose / Kubernetes).
+
+
+========================================
+4. Notification Service (Ваня) — интеграция событий из Booking Service
+========================================
+
+4.1. После того, как Notification Service будет готов и предоставит HTTP API (например, POST /notify/email):
+       - Обсудить формат вызовов:
+           - какие поля нужны Notification Service:
+               - email получателя
+               - тема
+               - текст
+               - id брони / зоны (по желанию)
+       - Где Booking Service будет брать email пользователя:
+           - либо напрямую из User Service (доп. запрос)
+           - либо через API Gateway
+           - либо через событие в очередь (если появится RabbitMQ/Redis).
+
+4.2. Определить, какие события Booking Service должен отправлять в Notification Service:
+       - успешное создание брони
+       - успешная отмена брони пользователем
+       - продление брони
+       - массовая отмена броней при закрытии зоны админом
+
+4.3. Добавить в код Booking Service (в crud.py или в отдельный слой) вызовы Notification Service:
+       - после успешного создания брони
+       - после успешной отмены
+       - после успешного продления
+       - после close_zone (перебор затронутых броней)
+
+4.4. Добавить настройки для Notification Service в config.py / env:
+       - NOTIFICATION_SERVICE_URL
+       - возможный сервисный токен для авторизации.
+
+
+========================================
+5. docker-compose и окружение
+========================================
+
+5.1. После того, как Ваня сделает docker-compose:
+       - убедиться, что Booking Service:
+           - видит базу postgres
+           - доступен из API Gateway по internal hostname (например, booking-service:8000)
+       - договориться о:
+           - BOOKING_SERVICE_URL (где Gateway будет стучаться)
+           - USER_SERVICE_URL (если Booking Service будет напрямую звать User Service — по решению команды)
+           - NOTIFICATION_SERVICE_URL для Notification Service.
+
+5.2. Проверить, что:
+       - при запуске docker-compose все сервисы поднимаются
+       - через Gateway реально можно:
+           - залогиниться → получить JWT
+           - сходить в Booking Service
+           - создать/отменить/продлить бронь
+           - сходить в /admin/* только под admin-ролей.
+
+
+========================================
+6. Дополнительные идеи по усилению безопасности (опционально)
+========================================
+
+6.1. Обсудить с командой:
+       - нужно ли дублировать валидацию JWT в Booking Service (например, на случай,
+         если кто-то обходит Gateway). Это усложнение, но может понадобиться.
+
+6.2. Если будет принято решение:
+       - добавить в booking-service/config.py:
+           - JWT_SECRET
+           - JWT_ALGORITHM
+       - реализовать в app/security.py альтернативный путь:
+           - если заголовков X-User-Id / X-User-Role нет, но есть Authorization: Bearer <token>,
+             можно локально провалидировать токен и извлечь user_id/role из JWT.
+
+6.3. Задокументировать финальную схему:
+       - кто где валидирует токен
+       - какой сервис кому доверяет
+       - какие заголовки гарантированно присылает API Gateway.
+
+
+
+
+[TODO] После того, как в проекте появится Alembic:
+  - удалить lifespan-логику create_all()
+  - создать миграции командой alembic revision --autogenerate
+  - применять их при запуске контейнера

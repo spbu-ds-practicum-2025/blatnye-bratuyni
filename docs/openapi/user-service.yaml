@@ -1,0 +1,89 @@
+openapi: 3.0.3
+info:
+  title: User Service API
+  version: "1.0.0"
+  description: Управление пользователями, их регистрацией, аутентификацией и восстановлением доступа.
+paths:
+  /users/register:
+    post:
+      summary: Регистрация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '200': { description: Успешная регистрация }
+        '400': { description: Некорректные данные }
+  /users/confirm:
+    post:
+      summary: Подтвердить email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmEmailRequest' }
+      responses:
+        '200': { description: Email подтверждён }
+        '400': { description: Ошибка }
+  /users/login:
+    post:
+      summary: Вход пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: JWT токен }
+        '401': { description: Неверная аутентификация }
+  /users/recover:
+    post:
+      summary: Запрос на восстановление пароля
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecoverRequest' }
+      responses:
+        '200': { description: Ссылка отправлена }
+        '404': { description: Email не найден }
+  /users/reset:
+    post:
+      summary: Сброс пароля по коду
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetRequest' }
+      responses:
+        '200': { description: Пароль изменён }
+        '400': { description: Некорректный или просроченный токен }
+components:
+  schemas:
+    RegisterRequest:
+      type: object
+      properties:
+        email: { type: string }
+        name: { type: string }
+        password: { type: string }
+    ConfirmEmailRequest:
+      type: object
+      properties:
+        email: { type: string }
+        code: { type: string }
+    LoginRequest:
+      type: object
+      properties:
+        email: { type: string }
+        password: { type: string }
+    RecoverRequest:
+      type: object
+      properties:
+        email: { type: string }
+    ResetRequest:
+      type: object
+      properties:
+        email: { type: string }
+        token: { type: string }
+        new_password: { type: string }
