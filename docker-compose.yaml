@@ -1,4 +1,3 @@
-version: "3"
 services:
   user-db:
     image: postgres:16
@@ -10,8 +9,13 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./pgdata/user:/var/lib/postgresql/data
+      - user-db-data:/var/lib/postgresql/data
       - ./services/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   booking-db:
     image: postgres:16
@@ -23,8 +27,13 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - ./pgdata/booking:/var/lib/postgresql/data
+      - booking-db-data:/var/lib/postgresql/data
       - ./services/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U booking_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   notification-db:
     image: postgres:16
@@ -36,7 +45,12 @@ services:
     ports:
       - "5434:5432"
     volumes:
-      - ./pgdata/notification:/var/lib/postgresql/data
+      - notification-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifier"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   user-service:
     build: ./services/user-service
@@ -47,7 +61,8 @@ services:
       - SMTP_PORT=1025
       - JWT_SECRET=a-string-secret-at-least-256-bits-long 
     depends_on:
-      - user-db
+      user-db:
+        condition: service_healthy
     ports:
       - "8001:8001"
     restart: unless-stopped
@@ -59,7 +74,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://booking_user:password@booking-db:5432/booking_db
       - JWT_SECRET=a-string-secret-at-least-256-bits-long
     depends_on:
-      - booking-db
+      booking-db:
+        condition: service_healthy
     ports:
       - "8002:8002"
     restart: unless-stopped
@@ -75,7 +91,8 @@ services:
       - EMAIL_USER=noreply@coworking.com
       - EMAIL_PASS=anything 
     depends_on:
-      - notification-db
+      notification-db:
+        condition: service_healthy
     ports:
       - "8003:8003"
     restart: unless-stopped
@@ -106,3 +123,8 @@ services:
     ports:
       - "8025:8025"
       - "1025:1025"
+
+volumes:
+  user-db-data:
+  booking-db-data:
+  notification-db-data:
