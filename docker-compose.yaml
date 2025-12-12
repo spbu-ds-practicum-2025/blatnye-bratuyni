@@ -10,9 +10,9 @@ services:
       - "5432:5432"
     volumes:
       - user-db-data:/var/lib/postgresql/data
-      - ./services/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./services/database/init-user.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user"]
+      test: ["CMD-SHELL", "pg_isready -U user -d user_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,9 +28,9 @@ services:
       - "5433:5432"
     volumes:
       - booking-db-data:/var/lib/postgresql/data
-      - ./services/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./services/database/init-booking.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U booking_user"]
+      test: ["CMD-SHELL", "pg_isready -U booking_user -d booking_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -47,7 +47,7 @@ services:
     volumes:
       - notification-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notifier"]
+      test: ["CMD-SHELL", "pg_isready -U notifier -d notif_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,10 +56,10 @@ services:
     build: ./services/user-service
     container_name: user-service
     environment:
-      - DATABASE_URL=postgresql://user:password@user-db:5432/user_db
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
-      - JWT_SECRET=a-string-secret-at-least-256-bits-long 
+      DATABASE_URL: postgresql://user:password@user-db:5432/user_db
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      JWT_SECRET: a-string-secret-at-least-256-bits-long
     depends_on:
       user-db:
         condition: service_healthy
@@ -71,8 +71,8 @@ services:
     build: ./services/booking-service
     container_name: booking-service
     environment:
-      - DATABASE_URL=postgresql+asyncpg://booking_user:password@booking-db:5432/booking_db
-      - JWT_SECRET=a-string-secret-at-least-256-bits-long
+      DATABASE_URL: postgresql+asyncpg://booking_user:password@booking-db:5432/booking_db
+      JWT_SECRET: a-string-secret-at-least-256-bits-long
     depends_on:
       booking-db:
         condition: service_healthy
@@ -84,12 +84,12 @@ services:
     build: ./services/notification-service
     container_name: notification-service
     environment:
-      - DATABASE_URL=postgresql://notifier:password@notification-db:5432/notif_db
-      - JWT_SECRET=a-string-secret-at-least-256-bits-long
-      - SMTP_SERVER=mailhog
-      - SMTP_PORT=1025
-      - EMAIL_USER=noreply@coworking.com
-      - EMAIL_PASS=anything 
+      DATABASE_URL: postgresql://notifier:password@notification-db:5432/notif_db
+      JWT_SECRET: a-string-secret-at-least-256-bits-long
+      SMTP_SERVER: mailhog
+      SMTP_PORT: 1025
+      EMAIL_USER: noreply@coworking.com
+      EMAIL_PASS: anything
     depends_on:
       notification-db:
         condition: service_healthy
@@ -107,7 +107,7 @@ services:
       - booking-service
       - notification-service
     environment:
-      - JWT_SECRET=a-string-secret-at-least-256-bits-long
+      JWT_SECRET: a-string-secret-at-least-256-bits-long
 
   frontend:
     build: ./services/frontend
@@ -115,9 +115,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://host.docker.internal:8000
+      NEXT_PUBLIC_API_URL: http://host.docker.internal:8000
     restart: unless-stopped
-    
+
   mailhog:
     image: mailhog/mailhog
     ports:
